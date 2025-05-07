@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noun Quiz App</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+        }
+        .status {
+            padding: 5px;
+            border: 1px solid #444444;
+            background-color: #2a2a2a;
+        }
+        .status.correct {
+            color: green;
+        }
+        .status.incorrect {
+            color: red;
+        }
+        .question-area {
+            margin: 20px 0;
+        }
+        .options {
+            margin: 10px 0;
+        }
+        .options label {
+            display: block;
+            padding: 10px;
+            background-color: #f5f5f5;
+            color: blue;
+            border-radius: 5px;
+            margin: 5px 0;
+            transition: background-color 0.2s;
+        }
+        .options label:hover {
+            background-color: #e8e8e8;
+        }
+        .button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .primary {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .info {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+        }
+        .danger {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .success {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .feedback {
+            margin: 20px 0;
+        }
+        hr {
+            border-color: #444444;
+        }
+        .batch-control {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <span>Current Difficulty: {{ difficulty }}</span>
+            <span>Score: {{ score }}</span>
+            <span class="status {% if status.startswith('Correct') %}correct{% elif status.startswith('Incorrect') %}incorrect{% endif %}">{{ status }}</span>
+            <button class="button danger" onclick="resetQuiz()">Reset Quiz</button>
+        </div>
+        <hr>
+        <div class="question-area" id="question-area" {% if batch_complete %}style="display: none;"{% endif %}>
+            <div id="question">{{ question | safe }}</div>
+            <form id="quiz-form">
+                <div class="options">
+                    {% for option in options %}
+                    <label>
+                        <input type="radio" name="answer" value="{{ option.value }}"> {{ option.label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="button" class="button primary" onclick="submitAnswer()">Submit Answer</button>
+            </form>
+        </div>
+        <div class="feedback" id="feedback" {% if not feedback %}style="display: none;"{% endif %}>
+            {{ feedback | safe }}
+            <button class="button info" onclick="nextQuestion()">Next Question</button>
+        </div>
+        <div class="batch-control" id="batch-control" {% if not batch_complete %}style="display: none;"{% endif %}>
+            <h3 style="color: blue;">Batch Completed!</h3>
+            <p style="color: blue;">Would you like to continue with another batch?</p>
+            <button class="button success" onclick="continueQuiz()">Continue Quiz</button>
+            <button class="button danger" onclick="resetQuiz()">Quit Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        function submitAnswer() {
+            const form = document.getElementById('quiz-form');
+            const formData = new FormData(form);
+            
+            fetch('/submit', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('question-area').style.display = 'none';
+                document.getElementById('feedback').style.display = 'block';
+                document.getElementById('feedback').innerHTML = data.feedback + '<button class="button info" onclick="nextQuestion()">Next Question</button>';
+                document.getElementById('batch-control').style.display = data.batch_complete ? 'block' : 'none';
+                updateControls(data);
+            });
+        }
+
+        function nextQuestion() {
+            fetch('/next', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.location.href = data.redirect;
+            });
+        }
+
+        function continueQuiz() {
+            fetch('/continue', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.location.href = data.redirect;
+            });
+        }
+
+        function resetQuiz() {
+            fetch('/reset', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.location.href = data.redirect;
+            });
+        }
+
+        function updateControls(data) {
+            const controls = document.querySelector('.controls');
+            controls.children[0].textContent = 'Current Difficulty: ' + data.difficulty;
+            controls.children[1].textContent = 'Score: ' + data.score;
+            const statusSpan = controls.children[2];
+            statusSpan.textContent = data.status;
+            statusSpan.className = 'status';
+            if (data.status.startsWith('Correct')) {
+                statusSpan.classList.add('correct');
+            } else if (data.status.startsWith('Incorrect')) {
+                statusSpan.classList.add('incorrect');
+            }
+        }
+    </script>
+</body>
+</html>
